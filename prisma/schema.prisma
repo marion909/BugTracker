@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Version {
+  id             String          @id @default(cuid())
+  version        String          @unique
+  releaseDate    DateTime
+  isOffline      Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  bugs           Bug[]
+  offlinePeriods OfflinePeriod[]
+}
+
+model OfflinePeriod {
+  id          String   @id @default(cuid())
+  versionId   String
+  version     Version  @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  offlineDate DateTime
+  onlineDate  DateTime?
+  createdAt   DateTime @default(now())
+  
+  @@index([versionId])
+}
+
+model Bug {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  developerCode String  // 3 Zeichen Kürzel
+  versionId   String
+  version     Version  @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  
+  @@index([versionId])
+  @@index([developerCode])
+}
