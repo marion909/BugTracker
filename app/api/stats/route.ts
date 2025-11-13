@@ -41,21 +41,27 @@ export async function GET() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
-    // Kürzeste Offline-Periode über alle Versionen
-    type OfflinePeriodWithDuration = {
+    // Kürzeste Online-Periode (Zeit zwischen Release und erstem Offline)
+    type OnlinePeriodWithDuration = {
       version: string;
       durationMs: number;
       durationDisplay: string;
-      offlineDate: Date;
-      onlineDate: Date;
+      releaseDate: Date;
+      firstOfflineDate: Date;
     };
 
-    const allCompletedPeriods: OfflinePeriodWithDuration[] = [];
+    const allOnlinePeriods: OnlinePeriodWithDuration[] = [];
     
     versions.forEach((v: VersionWithBugs) => {
-      v.offlinePeriods?.forEach((period: any) => {
-        if (period.onlineDate) {
-          const duration = new Date(period.onlineDate).getTime() - new Date(period.offlineDate).getTime();
+      // Finde die erste Offline-Periode
+      if (v.offlinePeriods && v.offlinePeriods.length > 0) {
+        const firstOffline = v.offlinePeriods.reduce((earliest: any, period: any) => {
+          return new Date(period.offlineDate) < new Date(earliest.offlineDate) ? period : earliest;
+        }, v.offlinePeriods[0]);
+
+        const duration = new Date(firstOffline.offlineDate).getTime() - new Date(v.releaseDate).getTime();
+        
+        if (duration > 0) {
           const days = Math.floor(duration / (1000 * 60 * 60 * 24));
           const hours = Math.floor((duration % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
           const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
@@ -69,19 +75,19 @@ export async function GET() {
             durationDisplay = `${minutes}m`;
           }
           
-          allCompletedPeriods.push({
+          allOnlinePeriods.push({
             version: v.version,
             durationMs: duration,
             durationDisplay,
-            offlineDate: new Date(period.offlineDate),
-            onlineDate: new Date(period.onlineDate),
+            releaseDate: new Date(v.releaseDate),
+            firstOfflineDate: new Date(firstOffline.offlineDate),
           });
         }
-      });
+      }
     });
 
-    const shortestPeriod = allCompletedPeriods.length > 0
-      ? allCompletedPeriods.reduce((min, period) => 
+    const shortestPeriod = allOnlinePeriods.length > 0
+      ? allOnlinePeriods.reduce((min, period) => 
           period.durationMs < min.durationMs ? period : min
         )
       : null;

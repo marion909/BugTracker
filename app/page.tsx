@@ -196,7 +196,7 @@ export default function Home() {
 
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border-l-4 border-green-500">
               <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">
-                KÜRZESTE OFFLINE-PERIODE
+                KÜRZESTE ONLINE-PERIODE
               </h3>
               {stats.shortestVersion ? (
                 <>
