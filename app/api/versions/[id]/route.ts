@@ -3,9 +3,10 @@ import { NextResponse } from 'next/server';
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { isOffline } = body;
 
@@ -13,7 +14,7 @@ export async function PATCH(
     if (isOffline) {
       await prisma.offlinePeriod.create({
         data: {
-          versionId: params.id,
+          versionId: id,
           offlineDate: new Date(),
         },
       });
@@ -21,7 +22,7 @@ export async function PATCH(
       // Wenn Version wieder online geht, setze onlineDate der letzten Periode
       const lastOfflinePeriod = await prisma.offlinePeriod.findFirst({
         where: {
-          versionId: params.id,
+          versionId: id,
           onlineDate: null,
         },
         orderBy: {
@@ -38,7 +39,7 @@ export async function PATCH(
     }
 
     const updatedVersion = await prisma.version.update({
-      where: { id: params.id },
+      where: { id },
       data: { isOffline },
     });
 
@@ -50,11 +51,12 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await prisma.version.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });
