@@ -34,6 +34,11 @@ type Stats = {
 };
 
 export default function Home() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
   const [versions, setVersions] = useState<Version[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [showVersionForm, setShowVersionForm] = useState(false);
@@ -48,14 +53,31 @@ export default function Home() {
   const [developerCode, setDeveloperCode] = useState('');
 
   useEffect(() => {
-    fetchVersions();
-    fetchStats();
+    // Prüfe ob bereits authentifiziert
+    const authenticated = sessionStorage.getItem('authenticated');
+    if (authenticated === 'true') {
+      setIsAuthenticated(true);
+    }
+    setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchVersions();
+      fetchStats();
+    }
+  }, [isAuthenticated]);
 
   const fetchVersions = async () => {
     const res = await fetch('/api/versions');
     const data = await res.json();
     setVersions(data);
+  };
+
+  const fetchStats = async () => {
+    const res = await fetch('/api/stats');
+    const data = await res.json();
+    setStats(data);
   };
 
   // Helper: Berechne Gesamtzeit offline für eine Version
@@ -71,11 +93,94 @@ export default function Home() {
     }, 0);
   };
 
-  const fetchStats = async () => {
-    const res = await fetch('/api/stats');
-    const data = await res.json();
-    setStats(data);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+
+      if (res.ok) {
+        sessionStorage.setItem('authenticated', 'true');
+        setIsAuthenticated(true);
+        setPassword('');
+      } else {
+        setAuthError('Falsches Passwort');
+        setPassword('');
+      }
+    } catch (error) {
+      setAuthError('Authentifizierung fehlgeschlagen');
+    }
   };
+
+  // Zeige Login-Screen wenn nicht authentifiziert
+  if (isLoading) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
+        {/* Blur Background */}
+        <div className="absolute inset-0 backdrop-blur-sm bg-white/30 dark:bg-black/30"></div>
+        
+        {/* Login Form */}
+        <div className="relative z-10 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 w-full max-w-md border-2 border-slate-200 dark:border-slate-700">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100 mb-2">
+              🐛 Bug Tracker
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400">
+              Passwort erforderlich
+            </p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Passwort
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setPassword('');
+                  }
+                }}
+                className="w-full px-4 py-3 border-2 border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100 text-lg"
+                placeholder="Passwort eingeben"
+                required
+                autoFocus
+              />
+            </div>
+
+            {authError && (
+              <div className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-4 py-3 rounded-lg text-sm font-medium">
+                {authError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition-all focus:outline-none focus:ring-4 focus:ring-blue-300 text-lg"
+            >
+              🔓 Anmelden
+            </button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+            Standard-Passwort: <code className="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">password</code>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleCreateVersion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,13 +247,24 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <header className="mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100 mb-2">
-            🐛 Bug Ranking
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400">
-            Version- und Bug-Tracking System
-          </p>
+        <header className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100 mb-2">
+              🐛 Bug Ranking
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400">
+              Version- und Bug-Tracking System
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              sessionStorage.removeItem('authenticated');
+              setIsAuthenticated(false);
+            }}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-lg transition-all focus:outline-none focus:ring-4 focus:ring-red-300"
+          >
+            🔒 Abmelden
+          </button>
         </header>
 
         {/* Statistics Dashboard */}
